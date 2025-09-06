@@ -42,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-background">
+      <body className="mini-app-theme bg-background">
         <Providers>{children}</Providers>
       </body>
     </html>

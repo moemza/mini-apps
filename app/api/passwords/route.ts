@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/redis';
+import redis from '@/lib/redis';
 import { encrypt, decrypt } from '@/lib/crypto';
 import { randomUUID } from 'crypto';
 
@@ -9,17 +9,20 @@ export async function GET(request: NextRequest) {
   const id = searchParams.get('id');
 
   if (id) {
-    const passwordEntry = await redis.hgetall(`password:${id}`);
+    const passwordEntry = await redis.hGetAll(`password:${id}`);
     if (!passwordEntry || !passwordEntry.password) {
       return NextResponse.json({ error: 'Password not found' }, { status: 404 });
     }
     const password = decrypt(passwordEntry.password as string);
     return NextResponse.json({ password });
   } else {
-    const passwordIds = await redis.smembers('passwords');
+    const passwordIds = await redis.sMembers('passwords');
+    if (!passwordIds) {
+        return NextResponse.json([]);
+    }
     const passwords = [];
     for (const passwordId of passwordIds) {
-      const password = await redis.hgetall(`password:${passwordId}`);
+      const password = await redis.hGetAll(`password:${passwordId}`);
       if (password && password.service && password.username) {
         passwords.push({ id: passwordId, service: password.service, username: password.username });
       }
@@ -39,8 +42,8 @@ export async function POST(request: NextRequest) {
   const id = randomUUID();
   const encryptedPassword = encrypt(password);
 
-  await redis.hset(`password:${id}`, { id, service, username, password: encryptedPassword });
-  await redis.sadd('passwords', id);
+  await redis.hSet(`password:${id}`, { id, service, username, password: encryptedPassword });
+  await redis.sAdd('passwords', id);
 
   return NextResponse.json({ id, service, username });
 }
@@ -65,7 +68,7 @@ export async function PUT(request: NextRequest) {
     updatedFields.password = encrypt(password);
   }
 
-  await redis.hset(`password:${id}`, updatedFields);
+  await redis.hSet(`password:${id}`, updatedFields);
 
   return NextResponse.json({ id, service, username });
 }
@@ -80,7 +83,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   const result = await redis.del(`password:${id}`);
-  await redis.srem('passwords', id);
+  await redis.sRem('passwords', id);
 
   if (result === 0) {
     return NextResponse.json({ error: 'Password not found' }, { status: 404 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/redis';
+import redis from '@/lib/redis';
 import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  const user = await redis.hgetall(`user:${email}`);
+  const user = await redis.hGetAll(`user:${email}`);
 
   if (!user || !user.password) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });

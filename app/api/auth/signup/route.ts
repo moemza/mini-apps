@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/redis';
+import redis from '@/lib/redis';
 import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await redis.hset(`user:${email}`, { email, password: hashedPassword });
+    await redis.hSet(`user:${email}`, { email, password: hashedPassword });
 
     return NextResponse.json({ message: 'User created successfully' });
   } catch (error) {
