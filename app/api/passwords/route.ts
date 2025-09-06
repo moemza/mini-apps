@@ -1,57 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { redis } from '@/lib/redis';
 import { encrypt, decrypt } from '@/lib/crypto';
 import { randomUUID } from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-
-interface Password {
-  id: string;
-  service: string;
-  username: string;
-  password?: string;
-}
-
-interface User {
-  id: string;
-  email: string;
-  password?: string;
-}
-
-interface Database {
-  users: User[];
-  passwords: Password[];
-}
-
-const dbPath = path.resolve(process.cwd(), 'lib/db.json');
-
-async function readDb(): Promise<Database> {
-  try {
-    const fileContent = await fs.readFile(dbPath, 'utf-8');
-    return JSON.parse(fileContent);
-  } catch {
-    return { users: [], passwords: [] };
-  }
-}
-
-async function writeDb(data: Database) {
-  await fs.writeFile(dbPath, JSON.stringify(data, null, 2));
-}
 
 // Get all passwords or a single password
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
-  const db = await readDb();
 
   if (id) {
-    const passwordEntry = db.passwords.find((p) => p.id === id);
+    const passwordEntry = await redis.hgetall(`password:${id}`);
     if (!passwordEntry || !passwordEntry.password) {
       return NextResponse.json({ error: 'Password not found' }, { status: 404 });
     }
     const password = decrypt(passwordEntry.password as string);
     return NextResponse.json({ password });
   } else {
-    const passwords = db.passwords.map(({ id, service, username }) => ({ id, service, username }));
+    const passwordIds = await redis.smembers('passwords');
+    const passwords = [];
+    for (const passwordId of passwordIds) {
+      const password = await redis.hgetall(`password:${passwordId}`);
+      if (password && password.service && password.username) {
+        passwords.push({ id: passwordId, service: password.service, username: password.username });
+      }
+    }
     return NextResponse.json(passwords);
   }
 }
@@ -64,12 +36,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const db = await readDb();
   const id = randomUUID();
   const encryptedPassword = encrypt(password);
 
-  db.passwords.push({ id, service, username, password: encryptedPassword });
-  await writeDb(db);
+  await redis.hset(`password:${id}`, { id, service, username, password: encryptedPassword });
+  await redis.sadd('passwords', id);
 
   return NextResponse.json({ id, service, username });
 }
@@ -82,21 +53,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const db = await readDb();
-  const passwordIndex = db.passwords.findIndex((p) => p.id === id);
+  const passwordExists = await redis.exists(`password:${id}`);
 
-  if (passwordIndex === -1) {
+  if (!passwordExists) {
     return NextResponse.json({ error: 'Password not found' }, { status: 404 });
   }
 
-  db.passwords[passwordIndex].service = service;
-  db.passwords[passwordIndex].username = username;
+  const updatedFields: { service: string; username: string; password?: string } = { service, username };
 
   if (password) {
-    db.passwords[passwordIndex].password = encrypt(password);
+    updatedFields.password = encrypt(password);
   }
 
-  await writeDb(db);
+  await redis.hset(`password:${id}`, updatedFields);
 
   return NextResponse.json({ id, service, username });
 }
@@ -110,15 +79,12 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
   }
 
-  const db = await readDb();
-  const initialLength = db.passwords.length;
-  db.passwords = db.passwords.filter((p) => p.id !== id);
+  const result = await redis.del(`password:${id}`);
+  await redis.srem('passwords', id);
 
-  if (db.passwords.length === initialLength) {
+  if (result === 0) {
     return NextResponse.json({ error: 'Password not found' }, { status: 404 });
   }
-
-  await writeDb(db);
 
   return NextResponse.json({ message: 'Password deleted successfully' });
 }
