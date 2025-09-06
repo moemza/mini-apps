@@ -3,13 +3,33 @@ import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import path from 'path';
 
+interface User {
+  id?: string;
+  email: string;
+  password?: string;
+}
+
+interface Password {
+  id: string;
+  userId: string;
+  name: string;
+  value: string;
+  url: string;
+  iv: string;
+}
+
+interface Database {
+  users: User[];
+  passwords: Password[];
+}
+
 const dbPath = path.resolve(process.cwd(), 'lib/db.json');
 
-async function readDb() {
+async function readDb(): Promise<Database> {
   try {
     const fileContent = await fs.readFile(dbPath, 'utf-8');
     return JSON.parse(fileContent);
-  } catch (error) {
+  } catch {
     return { users: [], passwords: [] };
   }
 }
@@ -23,9 +43,9 @@ export async function POST(request: NextRequest) {
 
   const db = await readDb();
 
-  const user = db.users.find((user: any) => user.email === email);
+  const user = db.users.find((user) => user.email === email);
 
-  if (!user) {
+  if (!user || !user.password) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 

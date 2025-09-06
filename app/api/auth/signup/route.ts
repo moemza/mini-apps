@@ -3,19 +3,39 @@ import bcrypt from 'bcrypt';
 import fs from 'fs/promises';
 import path from 'path';
 
+interface User {
+  id?: string;
+  email: string;
+  password?: string;
+}
+
+interface Password {
+  id: string;
+  userId: string;
+  name: string;
+  value: string;
+  url: string;
+  iv: string;
+}
+
+interface Database {
+  users: User[];
+  passwords: Password[];
+}
+
 const dbPath = path.resolve(process.cwd(), 'lib/db.json');
 
-async function readDb() {
+async function readDb(): Promise<Database> {
   try {
     const fileContent = await fs.readFile(dbPath, 'utf-8');
     return JSON.parse(fileContent);
-  } catch (error) {
+  } catch {
     // If the file doesn't exist, return a default structure
     return { users: [], passwords: [] };
   }
 }
 
-async function writeDb(data: any) {
+async function writeDb(data: Database) {
   await fs.writeFile(dbPath, JSON.stringify(data, null, 2));
 }
 
@@ -28,7 +48,7 @@ export async function POST(request: NextRequest) {
 
   const db = await readDb();
 
-  const userExists = db.users.find((user: any) => user.email === email);
+  const userExists = db.users.find((user) => user.email === email);
 
   if (userExists) {
     return NextResponse.json({ error: 'User already exists' }, { status: 409 });
