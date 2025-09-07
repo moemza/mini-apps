@@ -1,22 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Poll from './Poll.tsx';
+import Poll from './Poll';
 import { Contract } from 'ethers';
 
 interface PollData {
   id: number;
   name: string;
+  optionNames: string[];
+  votes: number[];
   deadline: number;
-  votesA: number;
-  votesB: number;
 }
 
 interface PollListProps {
   contract: Contract | null;
+  onVote: () => void;
+  refreshCounter: number;
 }
 
-export default function PollList({ contract }: PollListProps) {
+export default function PollList({ contract, onVote, refreshCounter }: PollListProps) {
   const [polls, setPolls] = useState<PollData[]>([]);
 
   useEffect(() => {
@@ -29,21 +31,23 @@ export default function PollList({ contract }: PollListProps) {
         pollsData.push({
           id: i,
           name: poll.name,
-          deadline: poll.deadline,
-          votesA: poll.votesA,
-          votesB: poll.votesB
+          optionNames: poll.optionNames,
+          votes: poll.votes.map((v: any) => Number(v.toString())),
+          deadline: Number(poll.deadline.toString()),
         });
       }
-      setPolls(pollsData);
+      setPolls(pollsData.reverse());
     }
-    getPolls();
-  }, [contract]);
+    if (contract) {
+        getPolls();
+    }
+  }, [contract, refreshCounter]);
 
   return (
     <div>
       <h2 className="text-xl font-bold mb-2">Polls</h2>
       {polls.map((poll) => (
-        <Poll key={poll.id} poll={poll} contract={contract} />
+        <Poll key={poll.id} poll={poll} contract={contract} onVote={onVote} />
       ))}
     </div>
   );

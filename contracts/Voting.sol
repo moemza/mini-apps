@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 contract Voting {
     struct Poll {
         string name;
+        string[] optionNames;
+        uint256[] votes;
         uint256 deadline;
-        uint256 votesA;
-        uint256 votesB;
         address creator;
     }
 
@@ -17,22 +16,19 @@ contract Voting {
 
     event Voted(uint256 indexed pollId, address indexed voter, uint256 option);
 
-    function createPoll(string memory _name, uint256 _deadline) public {
+    function createPoll(string memory _name, string[] memory _optionNames, uint256 _deadline) public {
         require(_deadline > block.timestamp, "Deadline must be in the future");
         pollCount++;
-        polls[pollCount] = Poll(_name, _deadline, 0, 0, msg.sender);
+        uint256[] memory votes = new uint256[](_optionNames.length);
+        polls[pollCount] = Poll(_name, _optionNames, votes, _deadline, msg.sender);
     }
 
     function vote(uint256 _pollId, uint256 _option) public {
         require(polls[_pollId].deadline > block.timestamp, "Poll has ended");
         require(!hasVoted[msg.sender][_pollId], "You have already voted");
-        require(_option == 0 || _option == 1, "Invalid option");
+        require(_option < polls[_pollId].optionNames.length, "Invalid option");
 
-        if (_option == 0) {
-            polls[_pollId].votesA++;
-        } else {
-            polls[_pollId].votesB++;
-        }
+        polls[_pollId].votes[_option]++;
 
         hasVoted[msg.sender][_pollId] = true;
         emit Voted(_pollId, msg.sender, _option);

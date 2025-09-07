@@ -1,0 +1,13 @@
+{
+  "frame": {
+    "name": "Zitoman Voting",
+    "version": "1",
+    "iconUrl": "https://mini-apps-three.vercel.app/icon.png",
+    "homeUrl": "https://mini-apps-three.vercel.app/",
+    "subtitle": "Decentralized Voting Application",
+    "description": "Decentralized Voting Application",
+    "primaryCategory": "social",
+    "splashImageUrl": "https://mini-apps-three.vercel.app/splash.png",
+    "splashBackgroundColor": "#6C63FF"
+  }
+}
