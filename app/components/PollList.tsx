@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Poll from './Poll';
+import Poll from './Poll.tsx';
 import { Contract } from 'ethers';
 
 interface PollData {
   id: number;
   name: string;
   deadline: number;
-  votes: number;
+  votesA: number;
+  votesB: number;
 }
 
 interface PollListProps {
@@ -25,7 +26,13 @@ export default function PollList({ contract }: PollListProps) {
       const pollsData: PollData[] = [];
       for (let i = 1; i <= pollCount; i++) {
         const poll = await contract.polls(i);
-        pollsData.push({ id: i, ...poll });
+        pollsData.push({
+          id: i,
+          name: poll.name,
+          deadline: poll.deadline,
+          votesA: poll.votesA,
+          votesB: poll.votesB
+        });
       }
       setPolls(pollsData);
     }
