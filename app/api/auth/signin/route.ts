@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
 import bcrypt from 'bcrypt';
+import { encrypt } from '@/lib/session';
+import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   const { email, password } = await request.json();
@@ -21,7 +23,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  // In a real application, you would create a session/token here
+  // Create the session
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const session = await encrypt({ userId: email, expiresAt });
+
+  // Set the session cookie
+  cookies().set('session', session, {
+    httpOnly: true,
+    secure: true,
+    expires: expiresAt,
+    sameSite: 'lax',
+    path: '/',
+  });
 
   return NextResponse.json({ message: 'Sign in successful' });
 }
